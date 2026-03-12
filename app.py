@@ -10,8 +10,7 @@ import tempfile
 
 from generator.ppt_builder import PPTBuilder
 from generator.image_fetcher import ImageFetcher
-from generator.content_formatter import format_content_for_slide, extract_image_keywords
-
+from generator.content_formatter import format_content_for_slide
 # ─── Unsplash API Key ───
 UNSPLASH_KEY = "vsqPu708Y6eSVNwZRsM0du7xwV2r_Gqw3MGeByiM0rs"
 
@@ -293,11 +292,11 @@ elif mode == "AI Auto Generate":
                         img_path = None
                         if auto_image_all and content:
                             st.text(f"  🖼️ 챕터 {idx+1} 이미지 검색 중...")
-                            keywords = extract_image_keywords(title, content)
                             img_path = fetcher.search_and_download(
-                                keywords,
-                                filename=f"ch_{idx+1}.jpg"
-                            )
+                                title=sd["title"],
+                                content=sd["content"],
+                                filename=f"slide_{idx+1}.jpg"
+                        )
 
                         builder.add_formatted_slide(formatted, image_path=img_path, slide_label=label)
 
