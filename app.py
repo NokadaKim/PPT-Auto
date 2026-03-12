@@ -189,11 +189,11 @@ if mode == "Manual Input":
                     img_path = None
                     if sd["auto_image"] and content:
                         st.text(f"  🖼️ 슬라이드 {idx+1} 이미지 검색 중...")
-                        keywords = extract_image_keywords(title, content)
                         img_path = fetcher.search_and_download(
-                            keywords,
-                            filename=f"slide_{idx+1}.jpg"
-                        )
+    title=title,
+    content=content,
+    filename=f"slide_{idx+1}.jpg"
+)
 
                     # 자동 레이아웃으로 슬라이드 생성
                     builder.add_formatted_slide(formatted, image_path=img_path, slide_label=label)
