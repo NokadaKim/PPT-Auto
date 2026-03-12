@@ -94,10 +94,9 @@ with st.sidebar:
 
     # 디자인 테마
     theme = st.selectbox("디자인 테마", [
-        "ir_book",
-        "dark_modern", "light_clean", "nature_green", "corporate_blue",
-        "warm_orange", "purple_creative", "minimal_gray", "tech_dark"
-    ], index=0)
+    "ir_pro",
+    "corporate_blue", "light_clean", "dark_modern"
+], index=0)
 
     st.divider()
 
