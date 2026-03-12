@@ -1,9 +1,9 @@
 """
 ppt_builder.py
-- 모든 콘텐츠를 한 슬라이드 내에 배치
-- 레이아웃별 렌더링 (bullets, two_column, key_value, highlight, table)
-- IR Book 스타일 테마 포함
-- 폰트: 타이틀(S-Core Dream 7 / Montserrat ExtraBold), 본문(S-Core Dream 5 / Montserrat Medium)
+- IR Book 레퍼런스 기반 디자인
+- 표지/INDEX/엔딩: 배경 이미지 풀스크린 + 좌측 타이틀
+- 본문: 좌상단 챕터번호(accent) + 타이틀(무채색)
+- 폰트: S-Core Dream 7 / Montserrat ExtraBold (타이틀), S-Core Dream 5 / Montserrat Medium (본문)
 """
 from pptx import Presentation
 from pptx.util import Inches, Pt, Emu
@@ -24,684 +24,545 @@ def is_korean(text):
 
 
 def get_title_font(text):
-    """타이틀용 폰트"""
-    if is_korean(text):
-        return 'S-Core Dream 7'
-    return 'Montserrat ExtraBold'
+    return 'S-Core Dream 7' if is_korean(text) else 'Montserrat ExtraBold'
 
 
 def get_body_font(text):
-    """본문용 폰트"""
-    if is_korean(text):
-        return 'S-Core Dream 5'
-    return 'Montserrat Medium'
+    return 'S-Core Dream 5' if is_korean(text) else 'Montserrat Medium'
 
 
-def set_title_style(paragraph, text, size, color):
-    """타이틀 텍스트 스타일 (볼드/이탤릭 없음)"""
-    paragraph.text = text
-    paragraph.font.size = size
-    paragraph.font.color.rgb = color
-    paragraph.font.name = get_title_font(text)
-    paragraph.font.bold = False
-    paragraph.font.italic = False
+def set_title_style(para, text, size, color):
+    para.text = text
+    para.font.size = size
+    para.font.color.rgb = color
+    para.font.name = get_title_font(text)
+    para.font.bold = False
+    para.font.italic = False
 
 
-def set_body_style(paragraph, text, size, color):
-    """본문 텍스트 스타일 (볼드/이탤릭 없음)"""
-    paragraph.text = text
-    paragraph.font.size = size
-    paragraph.font.color.rgb = color
-    paragraph.font.name = get_body_font(text)
-    paragraph.font.bold = False
-    paragraph.font.italic = False
+def set_body_style(para, text, size, color):
+    para.text = text
+    para.font.size = size
+    para.font.color.rgb = color
+    para.font.name = get_body_font(text)
+    para.font.bold = False
+    para.font.italic = False
 
 
 class PPTBuilder:
-    def __init__(self, theme="dark_modern", custom_colors=None):
+    def __init__(self, theme="ir_pro", custom_colors=None):
         self.prs = Presentation()
         self.prs.slide_width = Inches(13.333)
         self.prs.slide_height = Inches(7.5)
         self.slide_count = 0
+        self.chapter_count = 0
         self.theme = theme
 
         themes = {
+            "ir_pro": {
+                "bg": "#FFFFFF", "title": "#222222", "text": "#444444",
+                "accent": "#1B2A4A", "accent2": "#E8EDF3", "card_bg": "#F4F6F9",
+                "subtitle": "#888888", "label_bg": "#1B2A4A",
+                "chapter_num": "#1B2A4A", "chapter_title": "#222222",
+                "table_header_bg": "#1B2A4A", "table_header_text": "#FFFFFF",
+                "table_row_bg1": "#F4F6F9", "table_row_bg2": "#FFFFFF",
+                "table_border": "#D0D8E0",
+                "cover_overlay": "#1B2A4A", "divider_line": "#1B2A4A",
+                "page_num": "#AAAAAA"
+            },
             "dark_modern": {
                 "bg": "#1A1A2E", "title": "#FFFFFF", "text": "#E0E0E0",
                 "accent": "#E94560", "accent2": "#0F3460", "card_bg": "#16213E",
                 "subtitle": "#B0B0B0", "label_bg": "#E94560",
+                "chapter_num": "#E94560", "chapter_title": "#FFFFFF",
                 "table_header_bg": "#E94560", "table_header_text": "#FFFFFF",
                 "table_row_bg1": "#16213E", "table_row_bg2": "#1A1A2E",
-                "table_border": "#0F3460"
+                "table_border": "#0F3460",
+                "cover_overlay": "#1A1A2E", "divider_line": "#E94560",
+                "page_num": "#666666"
             },
             "light_clean": {
                 "bg": "#FFFFFF", "title": "#2D2D2D", "text": "#4A4A4A",
                 "accent": "#4A90D9", "accent2": "#F0F4F8", "card_bg": "#F7F9FC",
                 "subtitle": "#7A7A7A", "label_bg": "#4A90D9",
+                "chapter_num": "#4A90D9", "chapter_title": "#2D2D2D",
                 "table_header_bg": "#4A90D9", "table_header_text": "#FFFFFF",
                 "table_row_bg1": "#F7F9FC", "table_row_bg2": "#FFFFFF",
-                "table_border": "#D0D8E0"
-            },
-            "nature_green": {
-                "bg": "#F5F7F0", "title": "#2D4A2D", "text": "#3D5A3D",
-                "accent": "#6B8F3C", "accent2": "#E8F0DC", "card_bg": "#EDF2E4",
-                "subtitle": "#6B8F3C", "label_bg": "#6B8F3C",
-                "table_header_bg": "#6B8F3C", "table_header_text": "#FFFFFF",
-                "table_row_bg1": "#EDF2E4", "table_row_bg2": "#F5F7F0",
-                "table_border": "#C5D4A8"
+                "table_border": "#D0D8E0",
+                "cover_overlay": "#2D2D2D", "divider_line": "#4A90D9",
+                "page_num": "#AAAAAA"
             },
             "corporate_blue": {
                 "bg": "#F0F4F8", "title": "#1A365D", "text": "#2D4A7A",
                 "accent": "#3182CE", "accent2": "#EBF4FF", "card_bg": "#FFFFFF",
                 "subtitle": "#4A6FA5", "label_bg": "#3182CE",
+                "chapter_num": "#3182CE", "chapter_title": "#1A365D",
                 "table_header_bg": "#3182CE", "table_header_text": "#FFFFFF",
                 "table_row_bg1": "#EBF4FF", "table_row_bg2": "#F0F4F8",
-                "table_border": "#B0C4DE"
-            },
-            "warm_orange": {
-                "bg": "#FFF8F0", "title": "#7C3A1A", "text": "#5A3E2A",
-                "accent": "#E67E22", "accent2": "#FFF0E0", "card_bg": "#FFFFFF",
-                "subtitle": "#B86B2A", "label_bg": "#E67E22",
-                "table_header_bg": "#E67E22", "table_header_text": "#FFFFFF",
-                "table_row_bg1": "#FFF0E0", "table_row_bg2": "#FFF8F0",
-                "table_border": "#F0C8A0"
-            },
-            "purple_creative": {
-                "bg": "#F5F0FF", "title": "#4A1A7A", "text": "#5A3D7A",
-                "accent": "#8B5CF6", "accent2": "#EDE5FF", "card_bg": "#FFFFFF",
-                "subtitle": "#7C4DFF", "label_bg": "#8B5CF6",
-                "table_header_bg": "#8B5CF6", "table_header_text": "#FFFFFF",
-                "table_row_bg1": "#EDE5FF", "table_row_bg2": "#F5F0FF",
-                "table_border": "#C4B0F0"
-            },
-            "minimal_gray": {
-                "bg": "#FAFAFA", "title": "#333333", "text": "#555555",
-                "accent": "#888888", "accent2": "#F0F0F0", "card_bg": "#FFFFFF",
-                "subtitle": "#999999", "label_bg": "#666666",
-                "table_header_bg": "#666666", "table_header_text": "#FFFFFF",
-                "table_row_bg1": "#F5F5F5", "table_row_bg2": "#FAFAFA",
-                "table_border": "#DDDDDD"
-            },
-            "tech_dark": {
-                "bg": "#0D1117", "title": "#F0F6FC", "text": "#C9D1D9",
-                "accent": "#58A6FF", "accent2": "#161B22", "card_bg": "#161B22",
-                "subtitle": "#8B949E", "label_bg": "#1F6FEB",
-                "table_header_bg": "#1F6FEB", "table_header_text": "#FFFFFF",
-                "table_row_bg1": "#161B22", "table_row_bg2": "#0D1117",
-                "table_border": "#30363D"
-            },
-            "ir_book": {
-                "bg": "#FFFFFF", "title": "#1B2A4A", "text": "#333333",
-                "accent": "#1B2A4A", "accent2": "#E8EDF3", "card_bg": "#F4F6F9",
-                "subtitle": "#5A6A8A", "label_bg": "#1B2A4A",
-                "section_bar": "#1B2A4A", "section_bar_text": "#FFFFFF",
-                "table_header_bg": "#1B2A4A", "table_header_text": "#FFFFFF",
-                "table_row_bg1": "#F4F6F9", "table_row_bg2": "#FFFFFF",
-                "table_border": "#C0C8D8",
-                "highlight_num": "#C8102E", "chart_blue": "#2E5BFF",
-                "chart_red": "#C8102E", "chart_gray": "#8C9AB5",
-                "disclaimer_bg": "#F0F0F0", "disclaimer_text": "#999999",
-                "footer_line": "#1B2A4A"
+                "table_border": "#B0C4DE",
+                "cover_overlay": "#1A365D", "divider_line": "#3182CE",
+                "page_num": "#AAAAAA"
             },
         }
 
         if custom_colors and isinstance(custom_colors, dict):
             self.colors = custom_colors
         else:
-            self.colors = themes.get(theme, themes["dark_modern"])
+            self.colors = themes.get(theme, themes["ir_pro"])
 
-    def _set_slide_bg(self, slide):
+    def _set_slide_bg(self, slide, color=None):
         bg = slide.background
         fill = bg.fill
         fill.solid()
-        fill.fore_color.rgb = hex_to_rgb(self.colors["bg"])
+        fill.fore_color.rgb = hex_to_rgb(color or self.colors["bg"])
 
     def _add_page_number(self, slide):
         self.slide_count += 1
         txBox = slide.shapes.add_textbox(Inches(12.3), Inches(7.05), Inches(0.8), Inches(0.3))
         tf = txBox.text_frame
         p = tf.paragraphs[0]
-        set_body_style(p, str(self.slide_count), Pt(10), hex_to_rgb(self.colors.get("subtitle", "#999999")))
+        set_body_style(p, str(self.slide_count), Pt(10), hex_to_rgb(self.colors.get("page_num", "#AAAAAA")))
         p.alignment = PP_ALIGN.RIGHT
 
-    def _add_label(self, slide, label_text, left=Inches(0.6), top=Inches(0.4)):
-        if not label_text:
-            return
-        if self.theme == "ir_book":
-            self._add_ir_section_bar(slide, label_text)
-        else:
-            lbl = slide.shapes.add_shape(
-                MSO_SHAPE.ROUNDED_RECTANGLE, left, top, Inches(2.2), Inches(0.35)
+    # ═══════════════════════════════════════
+    # 표지 슬라이드 (배경이미지 + 좌측 타이틀)
+    # ═══════════════════════════════════════
+    def add_title_slide(self, title, subtitle="", bg_image_path=None):
+        slide = self.prs.slides.add_slide(self.prs.slide_layouts[6])
+
+        if bg_image_path and os.path.exists(bg_image_path):
+            slide.shapes.add_picture(
+                bg_image_path, Inches(0), Inches(0),
+                self.prs.slide_width, self.prs.slide_height
             )
-            lbl.fill.solid()
-            lbl.fill.fore_color.rgb = hex_to_rgb(self.colors.get("label_bg", self.colors["accent"]))
-            lbl.line.fill.background()
-            if hasattr(lbl, 'adjustments') and len(lbl.adjustments) > 0:
-                lbl.adjustments[0] = 0.3
-            tf = lbl.text_frame
-            tf.word_wrap = True
-            p = tf.paragraphs[0]
-            set_body_style(p, label_text, Pt(11), RGBColor(255, 255, 255))
-            p.alignment = PP_ALIGN.CENTER
+            # 좌측 반투명 오버레이
+            overlay = slide.shapes.add_shape(
+                MSO_SHAPE.RECTANGLE, Inches(0), Inches(0),
+                Inches(6.5), self.prs.slide_height
+            )
+            overlay.fill.solid()
+            overlay.fill.fore_color.rgb = hex_to_rgb(self.colors["cover_overlay"])
+            from pptx.oxml.ns import qn
+            overlay.fill._fill.attrib[qn('a:blipFill')] if False else None
+            overlay.line.fill.background()
+        else:
+            self._set_slide_bg(slide, self.colors["cover_overlay"])
 
-    # ─── IR Book 전용 ───
-    def _add_ir_section_bar(self, slide, section_text):
-        bar = slide.shapes.add_shape(
-            MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(0.65)
-        )
-        bar.fill.solid()
-        bar.fill.fore_color.rgb = hex_to_rgb(self.colors.get("section_bar", "#1B2A4A"))
-        bar.line.fill.background()
-
-        txBox = slide.shapes.add_textbox(Inches(0.6), Inches(0.1), Inches(12), Inches(0.45))
-        tf = txBox.text_frame
-        p = tf.paragraphs[0]
-        set_body_style(p, section_text, Pt(16), hex_to_rgb(self.colors.get("section_bar_text", "#FFFFFF")))
-
-    def _add_ir_footer(self, slide, disclaimer=""):
+        # 상단 장식선
         line = slide.shapes.add_shape(
-            MSO_SHAPE.RECTANGLE, Inches(0.5), Inches(6.95), Inches(12.333), Inches(0.02)
+            MSO_SHAPE.RECTANGLE, Inches(1.2), Inches(2.8), Inches(3.5), Inches(0.05)
         )
         line.fill.solid()
-        line.fill.fore_color.rgb = hex_to_rgb(self.colors.get("footer_line", "#1B2A4A"))
+        line.fill.fore_color.rgb = hex_to_rgb(self.colors.get("divider_line", "#FFFFFF"))
         line.line.fill.background()
 
-        if disclaimer:
-            txBox = slide.shapes.add_textbox(Inches(0.5), Inches(7.0), Inches(12), Inches(0.4))
-            tf = txBox.text_frame
-            tf.word_wrap = True
-            p = tf.paragraphs[0]
-            set_body_style(p, disclaimer, Pt(7), hex_to_rgb(self.colors.get("disclaimer_text", "#999999")))
-
-    # ─── 표지 슬라이드 ───
-    def add_title_slide(self, title, subtitle=""):
-        slide = self.prs.slides.add_slide(self.prs.slide_layouts[6])
-        self._set_slide_bg(slide)
-
-        if self.theme == "ir_book":
-            top_bar = slide.shapes.add_shape(
-                MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(2.8)
-            )
-            top_bar.fill.solid()
-            top_bar.fill.fore_color.rgb = hex_to_rgb("#1B2A4A")
-            top_bar.line.fill.background()
-
-            txBox = slide.shapes.add_textbox(Inches(1.2), Inches(3.2), Inches(11), Inches(1.5))
-            tf = txBox.text_frame
-            tf.word_wrap = True
-            p = tf.paragraphs[0]
-            set_title_style(p, title, Pt(40), hex_to_rgb("#1B2A4A"))
-
-            if subtitle:
-                txBox2 = slide.shapes.add_textbox(Inches(1.2), Inches(4.7), Inches(11), Inches(0.8))
-                tf2 = txBox2.text_frame
-                tf2.word_wrap = True
-                p2 = tf2.paragraphs[0]
-                set_body_style(p2, subtitle, Pt(20), hex_to_rgb("#5A6A8A"))
-
-            lbl = slide.shapes.add_textbox(Inches(1.2), Inches(1.0), Inches(5), Inches(0.8))
-            tf_l = lbl.text_frame
-            p_l = tf_l.paragraphs[0]
-            set_title_style(p_l, "IR BOOK", Pt(28), RGBColor(255, 255, 255))
-
-            bottom_line = slide.shapes.add_shape(
-                MSO_SHAPE.RECTANGLE, Inches(1.2), Inches(5.5), Inches(4), Inches(0.04)
-            )
-            bottom_line.fill.solid()
-            bottom_line.fill.fore_color.rgb = hex_to_rgb("#C8102E")
-            bottom_line.line.fill.background()
-
-            disc = slide.shapes.add_textbox(Inches(0.5), Inches(6.3), Inches(12), Inches(1.0))
-            tf_d = disc.text_frame
-            tf_d.word_wrap = True
-            p_d = tf_d.paragraphs[0]
-            set_body_style(p_d, "본 자료는 정보 제공을 목적으로 작성되었으며, 투자 권유를 위한 것이 아닙니다. 본 자료에 수록된 내용은 신뢰할 수 있는 자료에 기초하여 작성된 것이나 그 정확성이나 완전성을 보장할 수 없습니다.", Pt(8), hex_to_rgb("#999999"))
-        else:
-            line = slide.shapes.add_shape(
-                MSO_SHAPE.RECTANGLE, Inches(1.5), Inches(3.2), Inches(3), Inches(0.06)
-            )
-            line.fill.solid()
-            line.fill.fore_color.rgb = hex_to_rgb(self.colors["accent"])
-            line.line.fill.background()
-
-            txBox = slide.shapes.add_textbox(Inches(1.5), Inches(3.4), Inches(10), Inches(1.5))
-            tf = txBox.text_frame
-            tf.word_wrap = True
-            p = tf.paragraphs[0]
-            set_title_style(p, title, Pt(44), hex_to_rgb(self.colors["title"]))
-
-            if subtitle:
-                txBox2 = slide.shapes.add_textbox(Inches(1.5), Inches(4.9), Inches(10), Inches(0.8))
-                tf2 = txBox2.text_frame
-                tf2.word_wrap = True
-                p2 = tf2.paragraphs[0]
-                set_body_style(p2, subtitle, Pt(20), hex_to_rgb(self.colors.get("subtitle", "#999999")))
-
-        self._add_page_number(slide)
-
-    # ─── Bullets 레이아웃 ───
-    def add_bullets_slide(self, title, points, image_path=None, slide_label=""):
-        slide = self.prs.slides.add_slide(self.prs.slide_layouts[6])
-        self._set_slide_bg(slide)
-        self._add_label(slide, slide_label)
-
-        title_top = Inches(1.0) if self.theme == "ir_book" else Inches(0.9)
-        txBox = slide.shapes.add_textbox(Inches(0.8), title_top, Inches(11), Inches(0.7))
+        # 타이틀 (좌측)
+        txBox = slide.shapes.add_textbox(Inches(1.2), Inches(3.1), Inches(5.0), Inches(1.8))
         tf = txBox.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
-        set_title_style(p, title, Pt(28) if self.theme == "ir_book" else Pt(30), hex_to_rgb(self.colors["title"]))
+        set_title_style(p, title, Pt(40), RGBColor(255, 255, 255))
 
-        content_width = Inches(7.5) if image_path else Inches(11.5)
-        content_top = Inches(2.0) if self.theme == "ir_book" else Inches(1.8)
+        # 부제 (좌측)
+        if subtitle:
+            txBox2 = slide.shapes.add_textbox(Inches(1.2), Inches(4.9), Inches(5.0), Inches(0.8))
+            tf2 = txBox2.text_frame
+            tf2.word_wrap = True
+            p2 = tf2.paragraphs[0]
+            set_body_style(p2, subtitle, Pt(18), RGBColor(200, 210, 225))
 
-        txBox2 = slide.shapes.add_textbox(Inches(0.8), content_top, content_width, Inches(4.5))
-        tf2 = txBox2.text_frame
-        tf2.word_wrap = True
+        # "INVESTOR RELATIONS" 라벨
+        lbl = slide.shapes.add_textbox(Inches(1.2), Inches(2.2), Inches(5), Inches(0.5))
+        tf_l = lbl.text_frame
+        p_l = tf_l.paragraphs[0]
+        set_body_style(p_l, "INVESTOR RELATIONS", Pt(14), RGBColor(180, 190, 210))
+
+        self._add_page_number(slide)
+
+    # ═══════════════════════════════════════
+    # INDEX(목차) 슬라이드
+    # ═══════════════════════════════════════
+    def add_index_slide(self, chapters, bg_image_path=None):
+        slide = self.prs.slides.add_slide(self.prs.slide_layouts[6])
+
+        if bg_image_path and os.path.exists(bg_image_path):
+            slide.shapes.add_picture(
+                bg_image_path, Inches(0), Inches(0),
+                self.prs.slide_width, self.prs.slide_height
+            )
+            overlay = slide.shapes.add_shape(
+                MSO_SHAPE.RECTANGLE, Inches(0), Inches(0),
+                Inches(6.0), self.prs.slide_height
+            )
+            overlay.fill.solid()
+            overlay.fill.fore_color.rgb = hex_to_rgb(self.colors["cover_overlay"])
+            overlay.line.fill.background()
+        else:
+            self._set_slide_bg(slide, self.colors["cover_overlay"])
+
+        # "TABLE OF CONTENTS"
+        txBox = slide.shapes.add_textbox(Inches(1.2), Inches(1.0), Inches(4.5), Inches(0.6))
+        tf = txBox.text_frame
+        p = tf.paragraphs[0]
+        set_title_style(p, "TABLE OF CONTENTS", Pt(16), RGBColor(180, 190, 210))
+
+        # 목차 항목
+        start_top = Inches(2.0)
+        for idx, ch_title in enumerate(chapters):
+            num = f"{idx + 1:02d}"
+
+            # 번호
+            tb_num = slide.shapes.add_textbox(Inches(1.2), start_top + Inches(idx * 0.7), Inches(0.6), Inches(0.5))
+            tf_n = tb_num.text_frame
+            p_n = tf_n.paragraphs[0]
+            set_title_style(p_n, num, Pt(20), hex_to_rgb(self.colors.get("divider_line", "#FFFFFF")))
+
+            # 제목
+            tb_title = slide.shapes.add_textbox(Inches(2.0), start_top + Inches(idx * 0.7), Inches(3.5), Inches(0.5))
+            tf_t = tb_title.text_frame
+            tf_t.word_wrap = True
+            p_t = tf_t.paragraphs[0]
+            set_body_style(p_t, ch_title, Pt(16), RGBColor(255, 255, 255))
+
+        self._add_page_number(slide)
+
+    # ═══════════════════════════════════════
+    # 본문 - 챕터 헤더 구조
+    # ═══════════════════════════════════════
+    def _add_chapter_header(self, slide, title, slide_label=""):
+        """좌상단 챕터번호(accent) + 타이틀(무채색)"""
+        self._set_slide_bg(slide)
+
+        # 챕터 번호
+        self.chapter_count += 1
+        num_text = slide_label if slide_label else f"{self.chapter_count:02d}"
+
+        tb_num = slide.shapes.add_textbox(Inches(0.8), Inches(0.4), Inches(1.0), Inches(0.5))
+        tf_n = tb_num.text_frame
+        p_n = tf_n.paragraphs[0]
+        set_title_style(p_n, num_text, Pt(14), hex_to_rgb(self.colors["chapter_num"]))
+
+        # 구분선
+        line = slide.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE, Inches(0.8), Inches(0.9), Inches(0.5), Inches(0.03)
+        )
+        line.fill.solid()
+        line.fill.fore_color.rgb = hex_to_rgb(self.colors["chapter_num"])
+        line.line.fill.background()
+
+        # 타이틀
+        txBox = slide.shapes.add_textbox(Inches(0.8), Inches(1.05), Inches(11.5), Inches(0.7))
+        tf = txBox.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        set_title_style(p, title, Pt(26), hex_to_rgb(self.colors["chapter_title"]))
+
+        # 하단 라인
+        bottom_line = slide.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE, Inches(0.8), Inches(6.95), Inches(11.733), Inches(0.015)
+        )
+        bottom_line.fill.solid()
+        bottom_line.fill.fore_color.rgb = hex_to_rgb(self.colors.get("divider_line", "#DDDDDD"))
+        bottom_line.line.fill.background()
+
+    # ═══════════════════════════════════════
+    # Bullets 레이아웃
+    # ═══════════════════════════════════════
+    def add_bullets_slide(self, title, points, image_path=None, slide_label=""):
+        slide = self.prs.slides.add_slide(self.prs.slide_layouts[6])
+        self._add_chapter_header(slide, title, slide_label)
+
+        content_width = Inches(7.0) if image_path else Inches(11.5)
+        txBox = slide.shapes.add_textbox(Inches(0.8), Inches(2.0), content_width, Inches(4.5))
+        tf = txBox.text_frame
+        tf.word_wrap = True
 
         num_points = len(points) if isinstance(points, list) else 1
         if num_points <= 3:
-            font_size, spacing = Pt(18), Pt(14)
+            font_size, spacing = Pt(17), Pt(14)
         elif num_points <= 5:
-            font_size, spacing = Pt(16), Pt(10)
+            font_size, spacing = Pt(15), Pt(10)
         elif num_points <= 8:
-            font_size, spacing = Pt(14), Pt(8)
+            font_size, spacing = Pt(13), Pt(8)
         else:
-            font_size, spacing = Pt(12), Pt(6)
-
-        bullet_char = "■" if self.theme == "ir_book" else "•"
+            font_size, spacing = Pt(11), Pt(6)
 
         if isinstance(points, list):
             for i, point in enumerate(points):
-                p = tf2.paragraphs[0] if i == 0 else tf2.add_paragraph()
-                set_body_style(p, f"{bullet_char}  {point}", font_size, hex_to_rgb(self.colors["text"]))
+                p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+                set_body_style(p, f"•  {point}", font_size, hex_to_rgb(self.colors["text"]))
                 p.space_after = spacing
         else:
-            p = tf2.paragraphs[0]
+            p = tf.paragraphs[0]
             set_body_style(p, str(points), font_size, hex_to_rgb(self.colors["text"]))
 
         if image_path and os.path.exists(image_path):
             try:
-                slide.shapes.add_picture(image_path, Inches(8.8), Inches(1.8), Inches(4.0), Inches(4.0))
+                slide.shapes.add_picture(image_path, Inches(8.5), Inches(2.0), Inches(4.3), Inches(4.3))
             except Exception:
                 pass
 
-        if self.theme == "ir_book":
-            self._add_ir_footer(slide)
         self._add_page_number(slide)
 
-    # ─── Two Column 레이아웃 ───
+    # ═══════════════════════════════════════
+    # Two Column 레이아웃
+    # ═══════════════════════════════════════
     def add_two_column_slide(self, title, left_points, right_points, image_path=None, slide_label=""):
         slide = self.prs.slides.add_slide(self.prs.slide_layouts[6])
-        self._set_slide_bg(slide)
-        self._add_label(slide, slide_label)
-
-        title_top = Inches(1.0) if self.theme == "ir_book" else Inches(0.9)
-        txBox = slide.shapes.add_textbox(Inches(0.8), title_top, Inches(11), Inches(0.7))
-        tf = txBox.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
-        set_title_style(p, title, Pt(28) if self.theme == "ir_book" else Pt(30), hex_to_rgb(self.colors["title"]))
+        self._add_chapter_header(slide, title, slide_label)
 
         col_width = Inches(5.5)
-        col_top = Inches(1.9)
+        col_top = Inches(2.1)
 
-        if image_path and os.path.exists(image_path):
-            col_width = Inches(4.0)
-
-        for side, pts, x_offset in [("left", left_points, Inches(0.6)), ("right", right_points, Inches(0.6) + col_width + Inches(0.3))]:
-            shape_type = MSO_SHAPE.RECTANGLE if self.theme == "ir_book" else MSO_SHAPE.ROUNDED_RECTANGLE
-            card = slide.shapes.add_shape(shape_type, x_offset, col_top, col_width, Inches(4.5))
+        for pts, x_offset in [(left_points, Inches(0.8)), (right_points, Inches(0.8) + col_width + Inches(0.3))]:
+            card = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x_offset, col_top, col_width, Inches(4.3))
             card.fill.solid()
-            card.fill.fore_color.rgb = hex_to_rgb(self.colors.get("card_bg", self.colors["bg"]))
-            card.line.color.rgb = hex_to_rgb(self.colors.get("accent2", "#EEEEEE"))
+            card.fill.fore_color.rgb = hex_to_rgb(self.colors.get("card_bg", "#F4F6F9"))
+            card.line.color.rgb = hex_to_rgb(self.colors.get("accent2", "#E8EDF3"))
             card.line.width = Pt(1)
-            if self.theme != "ir_book" and hasattr(card, 'adjustments') and len(card.adjustments) > 0:
-                card.adjustments[0] = 0.03
 
-            self._fill_column(slide, x_offset + Inches(0.3), col_top + Inches(0.3), col_width - Inches(0.6), pts)
+            txBox = slide.shapes.add_textbox(x_offset + Inches(0.3), col_top + Inches(0.3), col_width - Inches(0.6), Inches(3.7))
+            tf = txBox.text_frame
+            tf.word_wrap = True
+            fsize = Pt(13) if len(pts) <= 5 else Pt(11)
+            for i, pt in enumerate(pts):
+                p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+                set_body_style(p, f"•  {pt}", fsize, hex_to_rgb(self.colors["text"]))
+                p.space_after = Pt(7)
 
-        if image_path and os.path.exists(image_path):
-            try:
-                img_left = Inches(0.6) + col_width * 2 + Inches(0.6)
-                slide.shapes.add_picture(image_path, img_left, col_top, Inches(3.5), Inches(4.5))
-            except Exception:
-                pass
-
-        if self.theme == "ir_book":
-            self._add_ir_footer(slide)
         self._add_page_number(slide)
 
-    def _fill_column(self, slide, left, top, width, points):
-        txBox = slide.shapes.add_textbox(left, top, width, Inches(4.0))
-        tf = txBox.text_frame
-        tf.word_wrap = True
-        num = len(points)
-        fsize = Pt(14) if num <= 5 else Pt(12)
-        spacing = Pt(8) if num <= 5 else Pt(5)
-        bullet_char = "■" if self.theme == "ir_book" else "•"
-        for i, pt in enumerate(points):
-            p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-            set_body_style(p, f"{bullet_char}  {pt}", fsize, hex_to_rgb(self.colors["text"]))
-            p.space_after = spacing
-
-    # ─── Key-Value 레이아웃 ───
+    # ═══════════════════════════════════════
+    # Key-Value 레이아웃
+    # ═══════════════════════════════════════
     def add_key_value_slide(self, title, pairs, image_path=None, slide_label=""):
         slide = self.prs.slides.add_slide(self.prs.slide_layouts[6])
-        self._set_slide_bg(slide)
-        self._add_label(slide, slide_label)
+        self._add_chapter_header(slide, title, slide_label)
 
-        title_top = Inches(1.0) if self.theme == "ir_book" else Inches(0.9)
-        txBox = slide.shapes.add_textbox(Inches(0.8), title_top, Inches(11), Inches(0.7))
-        tf = txBox.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
-        set_title_style(p, title, Pt(28) if self.theme == "ir_book" else Pt(30), hex_to_rgb(self.colors["title"]))
-
-        max_cols = 3 if not image_path else 2
-        card_area_width = Inches(8.5) if image_path else Inches(12.0)
-        card_w = (card_area_width - Inches(0.3) * (max_cols - 1)) / max_cols
+        max_cols = 3
+        card_area = Inches(12.0)
+        card_w = (card_area - Inches(0.3) * (max_cols - 1)) / max_cols
         card_h = Inches(2.0)
-        start_left = Inches(0.6)
-        start_top = Inches(2.0)
 
         for idx, pair in enumerate(pairs[:6]):
             col = idx % max_cols
             row = idx // max_cols
-            c_left = start_left + col * (card_w + Inches(0.3))
-            c_top = start_top + row * (card_h + Inches(0.3))
+            c_left = Inches(0.6) + col * (card_w + Inches(0.3))
+            c_top = Inches(2.2) + row * (card_h + Inches(0.3))
 
-            shape_type = MSO_SHAPE.RECTANGLE if self.theme == "ir_book" else MSO_SHAPE.ROUNDED_RECTANGLE
-            card = slide.shapes.add_shape(shape_type, int(c_left), c_top, int(card_w), card_h)
+            card = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, int(c_left), c_top, int(card_w), card_h)
             card.fill.solid()
-            card.fill.fore_color.rgb = hex_to_rgb(self.colors.get("card_bg", self.colors["bg"]))
-            card.line.color.rgb = hex_to_rgb(self.colors.get("accent2", "#EEEEEE"))
+            card.fill.fore_color.rgb = hex_to_rgb(self.colors.get("card_bg", "#F4F6F9"))
+            card.line.color.rgb = hex_to_rgb(self.colors.get("accent2", "#E8EDF3"))
             card.line.width = Pt(1)
-            if self.theme != "ir_book" and hasattr(card, 'adjustments') and len(card.adjustments) > 0:
-                card.adjustments[0] = 0.05
 
-            key_text = pair.get("key", "")
-            tb_key = slide.shapes.add_textbox(int(c_left) + Inches(0.2), c_top + Inches(0.25), int(card_w) - Inches(0.4), Inches(0.5))
-            tf_k = tb_key.text_frame
-            tf_k.word_wrap = True
-            pk = tf_k.paragraphs[0]
-            set_title_style(pk, key_text, Pt(16), hex_to_rgb(self.colors.get("highlight_num", self.colors["accent"])))
+            # Key
+            tb_key = slide.shapes.add_textbox(int(c_left) + Inches(0.2), c_top + Inches(0.2), int(card_w) - Inches(0.4), Inches(0.5))
+            pk = tb_key.text_frame.paragraphs[0]
+            set_title_style(pk, pair.get("key", ""), Pt(15), hex_to_rgb(self.colors["chapter_num"]))
 
-            val_text = pair.get("value", "")
-            tb_val = slide.shapes.add_textbox(int(c_left) + Inches(0.2), c_top + Inches(0.85), int(card_w) - Inches(0.4), Inches(1.0))
-            tf_v = tb_val.text_frame
-            tf_v.word_wrap = True
-            pv = tf_v.paragraphs[0]
-            set_body_style(pv, val_text, Pt(13), hex_to_rgb(self.colors["text"]))
+            # Value
+            tb_val = slide.shapes.add_textbox(int(c_left) + Inches(0.2), c_top + Inches(0.8), int(card_w) - Inches(0.4), Inches(1.0))
+            tb_val.text_frame.word_wrap = True
+            pv = tb_val.text_frame.paragraphs[0]
+            set_body_style(pv, pair.get("value", ""), Pt(12), hex_to_rgb(self.colors["text"]))
 
-        if image_path and os.path.exists(image_path):
-            try:
-                slide.shapes.add_picture(image_path, Inches(9.3), Inches(2.0), Inches(3.5), Inches(4.3))
-            except Exception:
-                pass
-
-        if self.theme == "ir_book":
-            self._add_ir_footer(slide)
         self._add_page_number(slide)
 
-    # ─── Highlight 레이아웃 ───
+    # ═══════════════════════════════════════
+    # Highlight 레이아웃
+    # ═══════════════════════════════════════
     def add_highlight_slide(self, title, main_text, support_points=None, image_path=None, slide_label=""):
         slide = self.prs.slides.add_slide(self.prs.slide_layouts[6])
-        self._set_slide_bg(slide)
-        self._add_label(slide, slide_label)
+        self._add_chapter_header(slide, title, slide_label)
 
-        title_top = Inches(1.0) if self.theme == "ir_book" else Inches(0.9)
-        txBox = slide.shapes.add_textbox(Inches(0.8), title_top, Inches(11), Inches(0.7))
-        tf = txBox.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
-        set_title_style(p, title, Pt(28) if self.theme == "ir_book" else Pt(30), hex_to_rgb(self.colors["title"]))
-
-        highlight_width = Inches(7.5) if image_path else Inches(11.5)
-        hl_color = self.colors.get("highlight_num", self.colors["accent"]) if self.theme == "ir_book" else self.colors["accent"]
-
-        shape_type = MSO_SHAPE.RECTANGLE if self.theme == "ir_book" else MSO_SHAPE.ROUNDED_RECTANGLE
-        hl_box = slide.shapes.add_shape(shape_type, Inches(0.6), Inches(2.0), highlight_width, Inches(2.0))
+        hl_box = slide.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE, Inches(0.8), Inches(2.2), Inches(11.5), Inches(2.0)
+        )
         hl_box.fill.solid()
-        hl_box.fill.fore_color.rgb = hex_to_rgb(hl_color)
+        hl_box.fill.fore_color.rgb = hex_to_rgb(self.colors["accent"])
         hl_box.line.fill.background()
-        if self.theme != "ir_book" and hasattr(hl_box, 'adjustments') and len(hl_box.adjustments) > 0:
-            hl_box.adjustments[0] = 0.05
 
-        tb_hl = slide.shapes.add_textbox(Inches(1.0), Inches(2.3), highlight_width - Inches(0.8), Inches(1.5))
-        tf_hl = tb_hl.text_frame
-        tf_hl.word_wrap = True
-        p_hl = tf_hl.paragraphs[0]
-        set_title_style(p_hl, main_text, Pt(22), RGBColor(255, 255, 255))
+        tb_hl = slide.shapes.add_textbox(Inches(1.2), Inches(2.5), Inches(10.7), Inches(1.5))
+        tb_hl.text_frame.word_wrap = True
+        p_hl = tb_hl.text_frame.paragraphs[0]
+        set_title_style(p_hl, main_text, Pt(20), RGBColor(255, 255, 255))
         p_hl.alignment = PP_ALIGN.CENTER
 
         if support_points:
-            tb_sp = slide.shapes.add_textbox(Inches(0.8), Inches(4.3), highlight_width, Inches(2.2))
-            tf_sp = tb_sp.text_frame
-            tf_sp.word_wrap = True
-            bullet_char = "■" if self.theme == "ir_book" else "•"
+            tb_sp = slide.shapes.add_textbox(Inches(0.8), Inches(4.5), Inches(11.5), Inches(2.0))
+            tb_sp.text_frame.word_wrap = True
             for i, sp in enumerate(support_points):
-                p_sp = tf_sp.paragraphs[0] if i == 0 else tf_sp.add_paragraph()
-                set_body_style(p_sp, f"{bullet_char}  {sp}", Pt(15), hex_to_rgb(self.colors["text"]))
+                p_sp = tb_sp.text_frame.paragraphs[0] if i == 0 else tb_sp.text_frame.add_paragraph()
+                set_body_style(p_sp, f"•  {sp}", Pt(14), hex_to_rgb(self.colors["text"]))
                 p_sp.space_after = Pt(8)
 
-        if image_path and os.path.exists(image_path):
-            try:
-                slide.shapes.add_picture(image_path, Inches(8.8), Inches(2.0), Inches(4.0), Inches(4.5))
-            except Exception:
-                pass
-
-        if self.theme == "ir_book":
-            self._add_ir_footer(slide)
         self._add_page_number(slide)
 
-    # ─── 표(Table) 레이아웃 ───
+    # ═══════════════════════════════════════
+    # 표(Table) 레이아웃
+    # ═══════════════════════════════════════
     def add_table_slide(self, title, headers, rows, image_path=None, slide_label=""):
         slide = self.prs.slides.add_slide(self.prs.slide_layouts[6])
-        self._set_slide_bg(slide)
-        self._add_label(slide, slide_label)
-
-        title_top = Inches(1.0) if self.theme == "ir_book" else Inches(0.9)
-        txBox = slide.shapes.add_textbox(Inches(0.8), title_top, Inches(11), Inches(0.7))
-        tf = txBox.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
-        set_title_style(p, title, Pt(28) if self.theme == "ir_book" else Pt(30), hex_to_rgb(self.colors["title"]))
+        self._add_chapter_header(slide, title, slide_label)
 
         num_rows = len(rows) + 1
         num_cols = len(headers)
+        table_width = Inches(12.0)
+        table_height = min(Inches(4.5), Inches(0.5) * num_rows)
 
-        table_width = Inches(8.0) if image_path else Inches(12.0)
-        table_height = min(Inches(5.0), Inches(0.55) * num_rows)
-        table_left = Inches(0.6)
-        table_top = Inches(1.9)
-
-        table_shape = slide.shapes.add_table(num_rows, num_cols, table_left, table_top, table_width, table_height)
+        table_shape = slide.shapes.add_table(num_rows, num_cols, Inches(0.6), Inches(2.1), table_width, table_height)
         table = table_shape.table
 
-        first_col_width = Inches(1.8)
-        remaining_width = table_width - first_col_width
-        other_col_width = remaining_width / (num_cols - 1) if num_cols > 1 else remaining_width
-
-        table.columns[0].width = int(first_col_width)
+        first_col_w = Inches(1.8)
+        other_col_w = (table_width - first_col_w) / (num_cols - 1) if num_cols > 1 else table_width
+        table.columns[0].width = int(first_col_w)
         for c in range(1, num_cols):
-            table.columns[c].width = int(other_col_width)
-
-        row_height = int(table_height / num_rows)
-        for r in range(num_rows):
-            table.rows[r].height = row_height
-
-        header_bg = hex_to_rgb(self.colors.get("table_header_bg", self.colors["accent"]))
-        header_text_color = hex_to_rgb(self.colors.get("table_header_text", "#FFFFFF"))
-        row_bg1 = hex_to_rgb(self.colors.get("table_row_bg1", "#F5F5F5"))
-        row_bg2 = hex_to_rgb(self.colors.get("table_row_bg2", "#FFFFFF"))
-        border_color = hex_to_rgb(self.colors.get("table_border", "#DDDDDD"))
-        text_color = hex_to_rgb(self.colors["text"])
+            table.columns[c].width = int(other_col_w)
 
         if num_rows <= 5 and num_cols <= 4:
-            header_font_size, cell_font_size = Pt(14), Pt(13)
+            h_fs, c_fs = Pt(13), Pt(12)
         elif num_rows <= 8 and num_cols <= 6:
-            header_font_size, cell_font_size = Pt(12), Pt(11)
+            h_fs, c_fs = Pt(11), Pt(10)
         else:
-            header_font_size, cell_font_size = Pt(10), Pt(9)
+            h_fs, c_fs = Pt(9), Pt(8)
 
-        for col_idx, header_text in enumerate(headers):
-            cell = table.cell(0, col_idx)
+        header_bg = hex_to_rgb(self.colors["table_header_bg"])
+        header_tc = hex_to_rgb(self.colors["table_header_text"])
+        row_bg1 = hex_to_rgb(self.colors["table_row_bg1"])
+        row_bg2 = hex_to_rgb(self.colors["table_row_bg2"])
+        text_c = hex_to_rgb(self.colors["text"])
+
+        for ci, ht in enumerate(headers):
+            cell = table.cell(0, ci)
             cell.text = ""
             cell.fill.solid()
             cell.fill.fore_color.rgb = header_bg
             para = cell.text_frame.paragraphs[0]
-            set_title_style(para, header_text, header_font_size, header_text_color)
+            set_title_style(para, ht, h_fs, header_tc)
             para.alignment = PP_ALIGN.CENTER
             cell.text_frame.word_wrap = True
             cell.vertical_anchor = MSO_ANCHOR.MIDDLE
 
-        for row_idx, row_data in enumerate(rows):
-            bg_color = row_bg1 if row_idx % 2 == 0 else row_bg2
-            for col_idx in range(num_cols):
-                cell = table.cell(row_idx + 1, col_idx)
-                cell_text = row_data[col_idx] if col_idx < len(row_data) else ""
+        for ri, rd in enumerate(rows):
+            bg = row_bg1 if ri % 2 == 0 else row_bg2
+            for ci in range(num_cols):
+                cell = table.cell(ri + 1, ci)
+                ct = rd[ci] if ci < len(rd) else ""
                 cell.text = ""
                 cell.fill.solid()
-                cell.fill.fore_color.rgb = bg_color
+                cell.fill.fore_color.rgb = bg
                 para = cell.text_frame.paragraphs[0]
-                set_body_style(para, cell_text, cell_font_size, text_color)
-                para.alignment = PP_ALIGN.CENTER
+                set_body_style(para, ct, c_fs, text_c)
+                para.alignment = PP_ALIGN.CENTER if ci > 0 else PP_ALIGN.LEFT
                 cell.text_frame.word_wrap = True
                 cell.vertical_anchor = MSO_ANCHOR.MIDDLE
-                if col_idx == 0:
-                    para.alignment = PP_ALIGN.LEFT
 
-        self._set_table_borders(table, num_rows, num_cols, border_color)
-
-        if image_path and os.path.exists(image_path):
-            try:
-                slide.shapes.add_picture(image_path, Inches(9.0), Inches(1.9), Inches(3.8), Inches(5.0))
-            except Exception:
-                pass
-
-        if self.theme == "ir_book":
-            self._add_ir_footer(slide)
+        self._set_table_borders(table, num_rows, num_cols, hex_to_rgb(self.colors["table_border"]))
         self._add_page_number(slide)
 
     def _set_table_borders(self, table, num_rows, num_cols, border_color):
         from pptx.oxml.ns import qn
-        border_color_str = str(border_color).replace('#', '')
-        for row_idx in range(num_rows):
-            for col_idx in range(num_cols):
-                cell = table.cell(row_idx, col_idx)
-                tc = cell._tc
+        bc = str(border_color).replace('#', '')
+        for ri in range(num_rows):
+            for ci in range(num_cols):
+                tc = table.cell(ri, ci)._tc
                 tcPr = tc.get_or_add_tcPr()
-                for border_name in ['a:lnL', 'a:lnR', 'a:lnT', 'a:lnB']:
-                    ln = tcPr.find(qn(border_name))
+                for bn in ['a:lnL', 'a:lnR', 'a:lnT', 'a:lnB']:
+                    ln = tcPr.find(qn(bn))
                     if ln is None:
-                        ln = tcPr.makeelement(qn(border_name), {})
+                        ln = tcPr.makeelement(qn(bn), {})
                         tcPr.append(ln)
                     ln.set('w', '12700')
-                    ln.set('cap', 'flat')
-                    ln.set('cmpd', 'sng')
-                    solidFill = ln.find(qn('a:solidFill'))
-                    if solidFill is None:
-                        solidFill = ln.makeelement(qn('a:solidFill'), {})
-                        ln.insert(0, solidFill)
-                    srgbClr = solidFill.find(qn('a:srgbClr'))
-                    if srgbClr is None:
-                        srgbClr = solidFill.makeelement(qn('a:srgbClr'), {})
-                        solidFill.append(srgbClr)
-                    srgbClr.set('val', border_color_str)
+                    sf = ln.find(qn('a:solidFill'))
+                    if sf is None:
+                        sf = ln.makeelement(qn('a:solidFill'), {})
+                        ln.insert(0, sf)
+                    sc = sf.find(qn('a:srgbClr'))
+                    if sc is None:
+                        sc = sf.makeelement(qn('a:srgbClr'), {})
+                        sf.append(sc)
+                    sc.set('val', bc)
 
-    # ─── 통합 렌더 ───
+    # ═══════════════════════════════════════
+    # 통합 렌더
+    # ═══════════════════════════════════════
     def add_formatted_slide(self, formatted_data, image_path=None, slide_label=""):
         layout = formatted_data.get("layout", "bullets")
         title = formatted_data.get("title", "")
         sections = formatted_data.get("sections", [])
 
         if layout == "table":
-            headers, rows = [], []
             for sec in sections:
                 if sec["type"] == "table":
-                    headers = sec["headers"]
-                    rows = sec["rows"]
-                    break
-            self.add_table_slide(title, headers, rows, image_path, slide_label)
+                    self.add_table_slide(title, sec["headers"], sec["rows"], image_path, slide_label)
+                    return
         elif layout == "key_value":
-            pairs = []
             for sec in sections:
                 if sec["type"] == "key_value":
-                    pairs = sec["pairs"]
-                    break
-            self.add_key_value_slide(title, pairs, image_path, slide_label)
+                    self.add_key_value_slide(title, sec["pairs"], image_path, slide_label)
+                    return
         elif layout == "two_column":
-            left_pts, right_pts = [], []
+            lp, rp = [], []
             for sec in sections:
-                if sec.get("side") == "left":
-                    left_pts = sec.get("points", [])
-                elif sec.get("side") == "right":
-                    right_pts = sec.get("points", [])
-            self.add_two_column_slide(title, left_pts, right_pts, image_path, slide_label)
+                if sec.get("side") == "left": lp = sec.get("points", [])
+                elif sec.get("side") == "right": rp = sec.get("points", [])
+            self.add_two_column_slide(title, lp, rp, image_path, slide_label)
+            return
         elif layout == "highlight":
-            main, support = "", []
+            main, sup = "", []
             for sec in sections:
-                if sec["type"] == "highlight":
-                    main = sec["main"]
-                elif sec["type"] == "support":
-                    support = sec.get("points", [])
-            self.add_highlight_slide(title, main, support, image_path, slide_label)
-        else:
-            all_points = []
-            for sec in sections:
-                if sec.get("type") == "bullets":
-                    all_points.extend(sec.get("points", []))
-                elif sec.get("type") == "text":
-                    all_points.append(sec.get("content", ""))
-            self.add_bullets_slide(title, all_points, image_path, slide_label)
+                if sec["type"] == "highlight": main = sec["main"]
+                elif sec["type"] == "support": sup = sec.get("points", [])
+            self.add_highlight_slide(title, main, sup, image_path, slide_label)
+            return
 
-    # ─── 엔딩 슬라이드 ───
-    def add_ending_slide(self, text="Thank You", subtext=""):
+        pts = []
+        for sec in sections:
+            if sec.get("type") == "bullets": pts.extend(sec.get("points", []))
+            elif sec.get("type") == "text": pts.append(sec.get("content", ""))
+        self.add_bullets_slide(title, pts, image_path, slide_label)
+
+    # ═══════════════════════════════════════
+    # 엔딩 슬라이드 (배경이미지 + 중앙 텍스트)
+    # ═══════════════════════════════════════
+    def add_ending_slide(self, text="Thank You", subtext="", bg_image_path=None):
         slide = self.prs.slides.add_slide(self.prs.slide_layouts[6])
-        self._set_slide_bg(slide)
 
-        if self.theme == "ir_book":
-            bar = slide.shapes.add_shape(
-                MSO_SHAPE.RECTANGLE, Inches(0), Inches(2.5), Inches(13.333), Inches(2.5)
+        if bg_image_path and os.path.exists(bg_image_path):
+            slide.shapes.add_picture(
+                bg_image_path, Inches(0), Inches(0),
+                self.prs.slide_width, self.prs.slide_height
             )
-            bar.fill.solid()
-            bar.fill.fore_color.rgb = hex_to_rgb("#1B2A4A")
-            bar.line.fill.background()
-
-            txBox = slide.shapes.add_textbox(Inches(2), Inches(2.9), Inches(9), Inches(1.0))
-            tf = txBox.text_frame
-            p = tf.paragraphs[0]
-            set_title_style(p, text, Pt(44), RGBColor(255, 255, 255))
-            p.alignment = PP_ALIGN.CENTER
-
-            if subtext:
-                txBox2 = slide.shapes.add_textbox(Inches(2), Inches(4.0), Inches(9), Inches(0.8))
-                tf2 = txBox2.text_frame
-                p2 = tf2.paragraphs[0]
-                set_body_style(p2, subtext, Pt(18), RGBColor(200, 210, 230))
-                p2.alignment = PP_ALIGN.CENTER
-
-            self._add_ir_footer(slide, "본 자료는 정보 제공을 목적으로 작성되었습니다.")
+            overlay = slide.shapes.add_shape(
+                MSO_SHAPE.RECTANGLE, Inches(0), Inches(0),
+                self.prs.slide_width, self.prs.slide_height
+            )
+            overlay.fill.solid()
+            overlay.fill.fore_color.rgb = hex_to_rgb(self.colors["cover_overlay"])
+            overlay.line.fill.background()
         else:
-            txBox = slide.shapes.add_textbox(Inches(2), Inches(2.5), Inches(9), Inches(1.5))
-            tf = txBox.text_frame
-            tf.word_wrap = True
-            p = tf.paragraphs[0]
-            set_title_style(p, text, Pt(48), hex_to_rgb(self.colors["accent"]))
-            p.alignment = PP_ALIGN.CENTER
+            self._set_slide_bg(slide, self.colors["cover_overlay"])
 
-            if subtext:
-                txBox2 = slide.shapes.add_textbox(Inches(2), Inches(4.2), Inches(9), Inches(1))
-                tf2 = txBox2.text_frame
-                tf2.word_wrap = True
-                p2 = tf2.paragraphs[0]
-                set_body_style(p2, subtext, Pt(20), hex_to_rgb(self.colors.get("subtitle", "#999999")))
-                p2.alignment = PP_ALIGN.CENTER
+        txBox = slide.shapes.add_textbox(Inches(2), Inches(2.8), Inches(9), Inches(1.2))
+        tf = txBox.text_frame
+        p = tf.paragraphs[0]
+        set_title_style(p, text, Pt(48), RGBColor(255, 255, 255))
+        p.alignment = PP_ALIGN.CENTER
+
+        if subtext:
+            txBox2 = slide.shapes.add_textbox(Inches(2), Inches(4.2), Inches(9), Inches(0.8))
+            tf2 = txBox2.text_frame
+            tf2.word_wrap = True
+            p2 = tf2.paragraphs[0]
+            set_body_style(p2, subtext, Pt(18), RGBColor(200, 210, 225))
+            p2.alignment = PP_ALIGN.CENTER
 
         self._add_page_number(slide)
 
-    # ─── 저장 ───
+    # ═══════════════════════════════════════
+    # 저장
+    # ═══════════════════════════════════════
     def save(self, filepath):
         directory = os.path.dirname(filepath)
         if directory and not os.path.exists(directory):
