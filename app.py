@@ -13,7 +13,7 @@ from generator.image_fetcher import ImageFetcher
 from generator.content_formatter import format_content_for_slide, extract_image_keywords
 
 # ─── Unsplash API Key ───
-UNSPLASH_KEY = "qARlN0E8kUV3pTxjcuGdHzi9Hi2RBvv1VK3fryEoXug"
+UNSPLASH_KEY = "vsqPu708Y6eSVNwZRsM0du7xwV2r_Gqw3MGeByiM0rs"
 
 # ─── AI 콘텐츠 생성 (g4f 사용) ───
 def generate_outline_with_ai(topic, num_chapters):
