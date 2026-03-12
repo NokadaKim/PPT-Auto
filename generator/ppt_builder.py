@@ -2,7 +2,7 @@
 ppt_builder.py
 - 모든 콘텐츠를 한 슬라이드 내에 배치
 - 레이아웃별 렌더링 (bullets, two_column, key_value, highlight, table)
-- 이미지 삽입 지원
+- IR Book 스타일 테마 포함
 """
 from pptx import Presentation
 from pptx.util import Inches, Pt, Emu
@@ -99,6 +99,20 @@ class PPTBuilder:
                 "table_row_bg1": "#161B22", "table_row_bg2": "#0D1117",
                 "table_border": "#30363D"
             },
+            # ★ IR Book 스타일 (ipo38 레퍼런스 기반)
+            "ir_book": {
+                "bg": "#FFFFFF", "title": "#1B2A4A", "text": "#333333",
+                "accent": "#1B2A4A", "accent2": "#E8EDF3", "card_bg": "#F4F6F9",
+                "subtitle": "#5A6A8A", "label_bg": "#1B2A4A",
+                "section_bar": "#1B2A4A", "section_bar_text": "#FFFFFF",
+                "table_header_bg": "#1B2A4A", "table_header_text": "#FFFFFF",
+                "table_row_bg1": "#F4F6F9", "table_row_bg2": "#FFFFFF",
+                "table_border": "#C0C8D8",
+                "highlight_num": "#C8102E", "chart_blue": "#2E5BFF",
+                "chart_red": "#C8102E", "chart_gray": "#8C9AB5",
+                "disclaimer_bg": "#F0F0F0", "disclaimer_text": "#999999",
+                "footer_line": "#1B2A4A"
+            },
         }
 
         if custom_colors and isinstance(custom_colors, dict):
@@ -125,23 +139,67 @@ class PPTBuilder:
     def _add_label(self, slide, label_text, left=Inches(0.6), top=Inches(0.4)):
         if not label_text:
             return
-        lbl = slide.shapes.add_shape(
-            MSO_SHAPE.ROUNDED_RECTANGLE, left, top, Inches(2.2), Inches(0.35)
+        if self.theme == "ir_book":
+            self._add_ir_section_bar(slide, label_text)
+        else:
+            lbl = slide.shapes.add_shape(
+                MSO_SHAPE.ROUNDED_RECTANGLE, left, top, Inches(2.2), Inches(0.35)
+            )
+            lbl.fill.solid()
+            lbl.fill.fore_color.rgb = hex_to_rgb(self.colors.get("label_bg", self.colors["accent"]))
+            lbl.line.fill.background()
+            if hasattr(lbl, 'adjustments') and len(lbl.adjustments) > 0:
+                lbl.adjustments[0] = 0.3
+            tf = lbl.text_frame
+            tf.word_wrap = True
+            p = tf.paragraphs[0]
+            p.text = label_text
+            p.font.size = Pt(11)
+            p.font.bold = True
+            p.font.color.rgb = RGBColor(255, 255, 255)
+            p.font.name = get_font_name(label_text)
+            p.alignment = PP_ALIGN.CENTER
+
+    # ─────────────────────────────────────────
+    # ★ IR Book 전용 요소들
+    # ─────────────────────────────────────────
+    def _add_ir_section_bar(self, slide, section_text):
+        """IR Book 스타일 상단 섹션 바"""
+        bar = slide.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(0.65)
         )
-        lbl.fill.solid()
-        lbl.fill.fore_color.rgb = hex_to_rgb(self.colors.get("label_bg", self.colors["accent"]))
-        lbl.line.fill.background()
-        if hasattr(lbl, 'adjustments') and len(lbl.adjustments) > 0:
-            lbl.adjustments[0] = 0.3
-        tf = lbl.text_frame
-        tf.word_wrap = True
+        bar.fill.solid()
+        bar.fill.fore_color.rgb = hex_to_rgb(self.colors.get("section_bar", "#1B2A4A"))
+        bar.line.fill.background()
+
+        txBox = slide.shapes.add_textbox(Inches(0.6), Inches(0.1), Inches(12), Inches(0.45))
+        tf = txBox.text_frame
         p = tf.paragraphs[0]
-        p.text = label_text
-        p.font.size = Pt(11)
+        p.text = section_text
+        p.font.size = Pt(16)
         p.font.bold = True
-        p.font.color.rgb = RGBColor(255, 255, 255)
-        p.font.name = get_font_name(label_text)
-        p.alignment = PP_ALIGN.CENTER
+        p.font.color.rgb = hex_to_rgb(self.colors.get("section_bar_text", "#FFFFFF"))
+        p.font.name = '에스코어 드림 5 Medium'
+
+    def _add_ir_footer(self, slide, disclaimer=""):
+        """IR Book 스타일 하단 라인 + 면책조항"""
+        # 하단 라인
+        line = slide.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE, Inches(0.5), Inches(6.95), Inches(12.333), Inches(0.02)
+        )
+        line.fill.solid()
+        line.fill.fore_color.rgb = hex_to_rgb(self.colors.get("footer_line", "#1B2A4A"))
+        line.line.fill.background()
+
+        if disclaimer:
+            txBox = slide.shapes.add_textbox(Inches(0.5), Inches(7.0), Inches(12), Inches(0.4))
+            tf = txBox.text_frame
+            tf.word_wrap = True
+            p = tf.paragraphs[0]
+            p.text = disclaimer
+            p.font.size = Pt(7)
+            p.font.color.rgb = hex_to_rgb(self.colors.get("disclaimer_text", "#999999"))
+            p.font.name = '에스코어 드림 5 Medium'
 
     # ─────────────────────────────────────────
     # 표지 슬라이드
@@ -150,32 +208,92 @@ class PPTBuilder:
         slide = self.prs.slides.add_slide(self.prs.slide_layouts[6])
         self._set_slide_bg(slide)
 
-        line = slide.shapes.add_shape(
-            MSO_SHAPE.RECTANGLE, Inches(1.5), Inches(3.2), Inches(3), Inches(0.06)
-        )
-        line.fill.solid()
-        line.fill.fore_color.rgb = hex_to_rgb(self.colors["accent"])
-        line.line.fill.background()
+        if self.theme == "ir_book":
+            # IR Book 스타일 표지
+            top_bar = slide.shapes.add_shape(
+                MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(2.8)
+            )
+            top_bar.fill.solid()
+            top_bar.fill.fore_color.rgb = hex_to_rgb("#1B2A4A")
+            top_bar.line.fill.background()
 
-        txBox = slide.shapes.add_textbox(Inches(1.5), Inches(3.4), Inches(10), Inches(1.5))
-        tf = txBox.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
-        p.text = title
-        p.font.size = Pt(44)
-        p.font.bold = True
-        p.font.color.rgb = hex_to_rgb(self.colors["title"])
-        p.font.name = get_font_name(title)
+            # 타이틀
+            txBox = slide.shapes.add_textbox(Inches(1.2), Inches(3.2), Inches(11), Inches(1.5))
+            tf = txBox.text_frame
+            tf.word_wrap = True
+            p = tf.paragraphs[0]
+            p.text = title
+            p.font.size = Pt(40)
+            p.font.bold = True
+            p.font.color.rgb = hex_to_rgb("#1B2A4A")
+            p.font.name = '에스코어 드림 5 Medium'
 
-        if subtitle:
-            txBox2 = slide.shapes.add_textbox(Inches(1.5), Inches(4.9), Inches(10), Inches(0.8))
-            tf2 = txBox2.text_frame
-            tf2.word_wrap = True
-            p2 = tf2.paragraphs[0]
-            p2.text = subtitle
-            p2.font.size = Pt(20)
-            p2.font.color.rgb = hex_to_rgb(self.colors.get("subtitle", "#999999"))
-            p2.font.name = get_font_name(subtitle)
+            # 부제
+            if subtitle:
+                txBox2 = slide.shapes.add_textbox(Inches(1.2), Inches(4.7), Inches(11), Inches(0.8))
+                tf2 = txBox2.text_frame
+                tf2.word_wrap = True
+                p2 = tf2.paragraphs[0]
+                p2.text = subtitle
+                p2.font.size = Pt(20)
+                p2.font.color.rgb = hex_to_rgb("#5A6A8A")
+                p2.font.name = '에스코어 드림 5 Medium'
+
+            # IR Book 라벨
+            lbl = slide.shapes.add_textbox(Inches(1.2), Inches(1.0), Inches(5), Inches(0.8))
+            tf_l = lbl.text_frame
+            p_l = tf_l.paragraphs[0]
+            p_l.text = "IR BOOK"
+            p_l.font.size = Pt(28)
+            p_l.font.bold = True
+            p_l.font.color.rgb = RGBColor(255, 255, 255)
+            p_l.font.name = 'Montserrat SemiBold'
+
+            # 하단 라인
+            bottom_line = slide.shapes.add_shape(
+                MSO_SHAPE.RECTANGLE, Inches(1.2), Inches(5.5), Inches(4), Inches(0.04)
+            )
+            bottom_line.fill.solid()
+            bottom_line.fill.fore_color.rgb = hex_to_rgb("#C8102E")
+            bottom_line.line.fill.background()
+
+            # 면책조항
+            disc = slide.shapes.add_textbox(Inches(0.5), Inches(6.3), Inches(12), Inches(1.0))
+            tf_d = disc.text_frame
+            tf_d.word_wrap = True
+            p_d = tf_d.paragraphs[0]
+            p_d.text = "본 자료는 정보 제공을 목적으로 작성되었으며, 투자 권유를 위한 것이 아닙니다. 본 자료에 수록된 내용은 신뢰할 수 있는 자료에 기초하여 작성된 것이나 그 정확성이나 완전성을 보장할 수 없습니다."
+            p_d.font.size = Pt(8)
+            p_d.font.color.rgb = hex_to_rgb("#999999")
+            p_d.font.name = '에스코어 드림 5 Medium'
+        else:
+            # 기존 표지 스타일
+            line = slide.shapes.add_shape(
+                MSO_SHAPE.RECTANGLE, Inches(1.5), Inches(3.2), Inches(3), Inches(0.06)
+            )
+            line.fill.solid()
+            line.fill.fore_color.rgb = hex_to_rgb(self.colors["accent"])
+            line.line.fill.background()
+
+            txBox = slide.shapes.add_textbox(Inches(1.5), Inches(3.4), Inches(10), Inches(1.5))
+            tf = txBox.text_frame
+            tf.word_wrap = True
+            p = tf.paragraphs[0]
+            p.text = title
+            p.font.size = Pt(44)
+            p.font.bold = True
+            p.font.color.rgb = hex_to_rgb(self.colors["title"])
+            p.font.name = get_font_name(title)
+
+            if subtitle:
+                txBox2 = slide.shapes.add_textbox(Inches(1.5), Inches(4.9), Inches(10), Inches(0.8))
+                tf2 = txBox2.text_frame
+                tf2.word_wrap = True
+                p2 = tf2.paragraphs[0]
+                p2.text = subtitle
+                p2.font.size = Pt(20)
+                p2.font.color.rgb = hex_to_rgb(self.colors.get("subtitle", "#999999"))
+                p2.font.name = get_font_name(subtitle)
 
         self._add_page_number(slide)
 
@@ -187,19 +305,22 @@ class PPTBuilder:
         self._set_slide_bg(slide)
         self._add_label(slide, slide_label)
 
-        txBox = slide.shapes.add_textbox(Inches(0.8), Inches(0.9), Inches(11), Inches(0.7))
+        title_top = Inches(0.9) if self.theme != "ir_book" else Inches(1.0)
+
+        txBox = slide.shapes.add_textbox(Inches(0.8), title_top, Inches(11), Inches(0.7))
         tf = txBox.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
         p.text = title
-        p.font.size = Pt(30)
+        p.font.size = Pt(28) if self.theme == "ir_book" else Pt(30)
         p.font.bold = True
         p.font.color.rgb = hex_to_rgb(self.colors["title"])
         p.font.name = get_font_name(title)
 
         content_width = Inches(7.5) if image_path else Inches(11.5)
+        content_top = Inches(1.9) if self.theme != "ir_book" else Inches(2.0)
 
-        txBox2 = slide.shapes.add_textbox(Inches(0.8), Inches(1.8), content_width, Inches(5.0))
+        txBox2 = slide.shapes.add_textbox(Inches(0.8), content_top, content_width, Inches(4.5))
         tf2 = txBox2.text_frame
         tf2.word_wrap = True
 
@@ -216,7 +337,8 @@ class PPTBuilder:
         if isinstance(points, list):
             for i, point in enumerate(points):
                 p = tf2.paragraphs[0] if i == 0 else tf2.add_paragraph()
-                p.text = f"•  {point}"
+                bullet_char = "■" if self.theme == "ir_book" else "•"
+                p.text = f"{bullet_char}  {point}"
                 p.font.size = font_size
                 p.font.color.rgb = hex_to_rgb(self.colors["text"])
                 p.font.name = get_font_name(point)
@@ -234,6 +356,8 @@ class PPTBuilder:
             except Exception:
                 pass
 
+        if self.theme == "ir_book":
+            self._add_ir_footer(slide)
         self._add_page_number(slide)
 
     # ─────────────────────────────────────────
@@ -244,12 +368,13 @@ class PPTBuilder:
         self._set_slide_bg(slide)
         self._add_label(slide, slide_label)
 
-        txBox = slide.shapes.add_textbox(Inches(0.8), Inches(0.9), Inches(11), Inches(0.7))
+        title_top = Inches(0.9) if self.theme != "ir_book" else Inches(1.0)
+        txBox = slide.shapes.add_textbox(Inches(0.8), title_top, Inches(11), Inches(0.7))
         tf = txBox.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
         p.text = title
-        p.font.size = Pt(30)
+        p.font.size = Pt(28) if self.theme == "ir_book" else Pt(30)
         p.font.bold = True
         p.font.color.rgb = hex_to_rgb(self.colors["title"])
         p.font.name = get_font_name(title)
@@ -262,13 +387,14 @@ class PPTBuilder:
 
         for side, pts, x_offset in [("left", left_points, Inches(0.6)), ("right", right_points, Inches(0.6) + col_width + Inches(0.3))]:
             card = slide.shapes.add_shape(
-                MSO_SHAPE.ROUNDED_RECTANGLE, x_offset, col_top, col_width, Inches(4.8)
+                MSO_SHAPE.ROUNDED_RECTANGLE if self.theme != "ir_book" else MSO_SHAPE.RECTANGLE,
+                x_offset, col_top, col_width, Inches(4.5)
             )
             card.fill.solid()
             card.fill.fore_color.rgb = hex_to_rgb(self.colors.get("card_bg", self.colors["bg"]))
             card.line.color.rgb = hex_to_rgb(self.colors.get("accent2", "#EEEEEE"))
             card.line.width = Pt(1)
-            if hasattr(card, 'adjustments') and len(card.adjustments) > 0:
+            if self.theme != "ir_book" and hasattr(card, 'adjustments') and len(card.adjustments) > 0:
                 card.adjustments[0] = 0.03
 
             self._fill_column(slide, x_offset + Inches(0.3), col_top + Inches(0.3), col_width - Inches(0.6), pts)
@@ -276,22 +402,25 @@ class PPTBuilder:
         if image_path and os.path.exists(image_path):
             try:
                 img_left = Inches(0.6) + col_width * 2 + Inches(0.6)
-                slide.shapes.add_picture(image_path, img_left, col_top, Inches(3.5), Inches(4.8))
+                slide.shapes.add_picture(image_path, img_left, col_top, Inches(3.5), Inches(4.5))
             except Exception:
                 pass
 
+        if self.theme == "ir_book":
+            self._add_ir_footer(slide)
         self._add_page_number(slide)
 
     def _fill_column(self, slide, left, top, width, points):
-        txBox = slide.shapes.add_textbox(left, top, width, Inches(4.2))
+        txBox = slide.shapes.add_textbox(left, top, width, Inches(4.0))
         tf = txBox.text_frame
         tf.word_wrap = True
         num = len(points)
         fsize = Pt(14) if num <= 5 else Pt(12)
         spacing = Pt(8) if num <= 5 else Pt(5)
+        bullet_char = "■" if self.theme == "ir_book" else "•"
         for i, pt in enumerate(points):
             p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-            p.text = f"•  {pt}"
+            p.text = f"{bullet_char}  {pt}"
             p.font.size = fsize
             p.font.color.rgb = hex_to_rgb(self.colors["text"])
             p.font.name = get_font_name(pt)
@@ -305,12 +434,13 @@ class PPTBuilder:
         self._set_slide_bg(slide)
         self._add_label(slide, slide_label)
 
-        txBox = slide.shapes.add_textbox(Inches(0.8), Inches(0.9), Inches(11), Inches(0.7))
+        title_top = Inches(0.9) if self.theme != "ir_book" else Inches(1.0)
+        txBox = slide.shapes.add_textbox(Inches(0.8), title_top, Inches(11), Inches(0.7))
         tf = txBox.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
         p.text = title
-        p.font.size = Pt(30)
+        p.font.size = Pt(28) if self.theme == "ir_book" else Pt(30)
         p.font.bold = True
         p.font.color.rgb = hex_to_rgb(self.colors["title"])
         p.font.name = get_font_name(title)
@@ -328,14 +458,13 @@ class PPTBuilder:
             c_left = start_left + col * (card_w + Inches(0.3))
             c_top = start_top + row * (card_h + Inches(0.3))
 
-            card = slide.shapes.add_shape(
-                MSO_SHAPE.ROUNDED_RECTANGLE, int(c_left), c_top, int(card_w), card_h
-            )
+            shape_type = MSO_SHAPE.RECTANGLE if self.theme == "ir_book" else MSO_SHAPE.ROUNDED_RECTANGLE
+            card = slide.shapes.add_shape(shape_type, int(c_left), c_top, int(card_w), card_h)
             card.fill.solid()
             card.fill.fore_color.rgb = hex_to_rgb(self.colors.get("card_bg", self.colors["bg"]))
             card.line.color.rgb = hex_to_rgb(self.colors.get("accent2", "#EEEEEE"))
             card.line.width = Pt(1)
-            if hasattr(card, 'adjustments') and len(card.adjustments) > 0:
+            if self.theme != "ir_book" and hasattr(card, 'adjustments') and len(card.adjustments) > 0:
                 card.adjustments[0] = 0.05
 
             key_text = pair.get("key", "")
@@ -346,7 +475,7 @@ class PPTBuilder:
             pk.text = key_text
             pk.font.size = Pt(16)
             pk.font.bold = True
-            pk.font.color.rgb = hex_to_rgb(self.colors["accent"])
+            pk.font.color.rgb = hex_to_rgb(self.colors.get("highlight_num", self.colors["accent"]))
             pk.font.name = get_font_name(key_text)
 
             val_text = pair.get("value", "")
@@ -365,6 +494,8 @@ class PPTBuilder:
             except Exception:
                 pass
 
+        if self.theme == "ir_book":
+            self._add_ir_footer(slide)
         self._add_page_number(slide)
 
     # ─────────────────────────────────────────
@@ -375,24 +506,28 @@ class PPTBuilder:
         self._set_slide_bg(slide)
         self._add_label(slide, slide_label)
 
-        txBox = slide.shapes.add_textbox(Inches(0.8), Inches(0.9), Inches(11), Inches(0.7))
+        title_top = Inches(0.9) if self.theme != "ir_book" else Inches(1.0)
+        txBox = slide.shapes.add_textbox(Inches(0.8), title_top, Inches(11), Inches(0.7))
         tf = txBox.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
         p.text = title
-        p.font.size = Pt(30)
+        p.font.size = Pt(28) if self.theme == "ir_book" else Pt(30)
         p.font.bold = True
         p.font.color.rgb = hex_to_rgb(self.colors["title"])
         p.font.name = get_font_name(title)
 
         highlight_width = Inches(7.5) if image_path else Inches(11.5)
+        hl_color = self.colors.get("highlight_num", self.colors["accent"]) if self.theme == "ir_book" else self.colors["accent"]
+
         hl_box = slide.shapes.add_shape(
-            MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.6), Inches(2.0), highlight_width, Inches(2.0)
+            MSO_SHAPE.RECTANGLE if self.theme == "ir_book" else MSO_SHAPE.ROUNDED_RECTANGLE,
+            Inches(0.6), Inches(2.0), highlight_width, Inches(2.0)
         )
         hl_box.fill.solid()
-        hl_box.fill.fore_color.rgb = hex_to_rgb(self.colors["accent"])
+        hl_box.fill.fore_color.rgb = hex_to_rgb(hl_color)
         hl_box.line.fill.background()
-        if hasattr(hl_box, 'adjustments') and len(hl_box.adjustments) > 0:
+        if self.theme != "ir_book" and hasattr(hl_box, 'adjustments') and len(hl_box.adjustments) > 0:
             hl_box.adjustments[0] = 0.05
 
         tb_hl = slide.shapes.add_textbox(Inches(1.0), Inches(2.3), highlight_width - Inches(0.8), Inches(1.5))
@@ -407,12 +542,13 @@ class PPTBuilder:
         p_hl.alignment = PP_ALIGN.CENTER
 
         if support_points:
-            tb_sp = slide.shapes.add_textbox(Inches(0.8), Inches(4.3), highlight_width, Inches(2.5))
+            tb_sp = slide.shapes.add_textbox(Inches(0.8), Inches(4.3), highlight_width, Inches(2.2))
             tf_sp = tb_sp.text_frame
             tf_sp.word_wrap = True
+            bullet_char = "■" if self.theme == "ir_book" else "•"
             for i, sp in enumerate(support_points):
                 p_sp = tf_sp.paragraphs[0] if i == 0 else tf_sp.add_paragraph()
-                p_sp.text = f"•  {sp}"
+                p_sp.text = f"{bullet_char}  {sp}"
                 p_sp.font.size = Pt(15)
                 p_sp.font.color.rgb = hex_to_rgb(self.colors["text"])
                 p_sp.font.name = get_font_name(sp)
@@ -424,49 +560,42 @@ class PPTBuilder:
             except Exception:
                 pass
 
+        if self.theme == "ir_book":
+            self._add_ir_footer(slide)
         self._add_page_number(slide)
 
     # ─────────────────────────────────────────
-    # ★ 표(Table) 레이아웃 - 신규
+    # ★ 표(Table) 레이아웃
     # ─────────────────────────────────────────
     def add_table_slide(self, title, headers, rows, image_path=None, slide_label=""):
-        """
-        표 형식 데이터를 슬라이드에 테이블로 렌더링
-        headers: ["항목", "ChatGPT", "Claude", ...]
-        rows: [["추정 MAU", "~8.3억+", "~1,900만", ...], ...]
-        """
         slide = self.prs.slides.add_slide(self.prs.slide_layouts[6])
         self._set_slide_bg(slide)
         self._add_label(slide, slide_label)
 
-        # 제목
-        txBox = slide.shapes.add_textbox(Inches(0.8), Inches(0.9), Inches(11), Inches(0.7))
+        title_top = Inches(0.9) if self.theme != "ir_book" else Inches(1.0)
+        txBox = slide.shapes.add_textbox(Inches(0.8), title_top, Inches(11), Inches(0.7))
         tf = txBox.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
         p.text = title
-        p.font.size = Pt(30)
+        p.font.size = Pt(28) if self.theme == "ir_book" else Pt(30)
         p.font.bold = True
         p.font.color.rgb = hex_to_rgb(self.colors["title"])
         p.font.name = get_font_name(title)
 
-        # 테이블 크기 계산
-        num_rows = len(rows) + 1  # 헤더 포함
+        num_rows = len(rows) + 1
         num_cols = len(headers)
 
-        # 이미지가 있으면 테이블 폭 줄임
         table_width = Inches(8.0) if image_path else Inches(12.0)
         table_height = min(Inches(5.0), Inches(0.55) * num_rows)
         table_left = Inches(0.6)
         table_top = Inches(1.9)
 
-        # 테이블 추가
         table_shape = slide.shapes.add_table(
             num_rows, num_cols, table_left, table_top, table_width, table_height
         )
         table = table_shape.table
 
-        # 열 너비 설정: 첫 열은 좁게, 나머지 균등
         first_col_width = Inches(1.8)
         remaining_width = table_width - first_col_width
         other_col_width = remaining_width / (num_cols - 1) if num_cols > 1 else remaining_width
@@ -475,41 +604,30 @@ class PPTBuilder:
         for c in range(1, num_cols):
             table.columns[c].width = int(other_col_width)
 
-        # 행 높이 자동 조절
         row_height = int(table_height / num_rows)
         for r in range(num_rows):
             table.rows[r].height = row_height
 
-        # 색상 가져오기
         header_bg = hex_to_rgb(self.colors.get("table_header_bg", self.colors["accent"]))
         header_text_color = hex_to_rgb(self.colors.get("table_header_text", "#FFFFFF"))
-        row_bg1 = hex_to_rgb(self.colors.get("table_row_bg1", self.colors.get("card_bg", "#F5F5F5")))
-        row_bg2 = hex_to_rgb(self.colors.get("table_row_bg2", self.colors["bg"]))
+        row_bg1 = hex_to_rgb(self.colors.get("table_row_bg1", "#F5F5F5"))
+        row_bg2 = hex_to_rgb(self.colors.get("table_row_bg2", "#FFFFFF"))
         border_color = hex_to_rgb(self.colors.get("table_border", "#DDDDDD"))
         text_color = hex_to_rgb(self.colors["text"])
 
-        # 폰트 크기 계산 (행/열 수에 따라 자동 조절)
         if num_rows <= 5 and num_cols <= 4:
-            header_font_size = Pt(14)
-            cell_font_size = Pt(13)
+            header_font_size, cell_font_size = Pt(14), Pt(13)
         elif num_rows <= 8 and num_cols <= 6:
-            header_font_size = Pt(12)
-            cell_font_size = Pt(11)
+            header_font_size, cell_font_size = Pt(12), Pt(11)
         else:
-            header_font_size = Pt(10)
-            cell_font_size = Pt(9)
+            header_font_size, cell_font_size = Pt(10), Pt(9)
 
-        # ─── 헤더 행 ───
+        # 헤더 행
         for col_idx, header_text in enumerate(headers):
             cell = table.cell(0, col_idx)
             cell.text = ""
-
-            # 배경색
-            cell_fill = cell.fill
-            cell_fill.solid()
-            cell_fill.fore_color.rgb = header_bg
-
-            # 텍스트
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = header_bg
             para = cell.text_frame.paragraphs[0]
             para.text = header_text
             para.font.size = header_font_size
@@ -520,21 +638,15 @@ class PPTBuilder:
             cell.text_frame.word_wrap = True
             cell.vertical_anchor = MSO_ANCHOR.MIDDLE
 
-        # ─── 데이터 행 ───
+        # 데이터 행
         for row_idx, row_data in enumerate(rows):
             bg_color = row_bg1 if row_idx % 2 == 0 else row_bg2
-
             for col_idx in range(num_cols):
                 cell = table.cell(row_idx + 1, col_idx)
                 cell_text = row_data[col_idx] if col_idx < len(row_data) else ""
                 cell.text = ""
-
-                # 배경색 (줄무늬)
-                cell_fill = cell.fill
-                cell_fill.solid()
-                cell_fill.fore_color.rgb = bg_color
-
-                # 텍스트
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = bg_color
                 para = cell.text_frame.paragraphs[0]
                 para.text = cell_text
                 para.font.size = cell_font_size
@@ -543,73 +655,58 @@ class PPTBuilder:
                 para.alignment = PP_ALIGN.CENTER
                 cell.text_frame.word_wrap = True
                 cell.vertical_anchor = MSO_ANCHOR.MIDDLE
-
-                # 첫 열은 볼드 + 왼쪽 정렬
                 if col_idx == 0:
                     para.font.bold = True
                     para.alignment = PP_ALIGN.LEFT
 
-        # 테이블 테두리 설정
         self._set_table_borders(table, num_rows, num_cols, border_color)
 
-        # 이미지
         if image_path and os.path.exists(image_path):
             try:
-                slide.shapes.add_picture(
-                    image_path, Inches(9.0), Inches(1.9), Inches(3.8), Inches(5.0)
-                )
+                slide.shapes.add_picture(image_path, Inches(9.0), Inches(1.9), Inches(3.8), Inches(5.0))
             except Exception:
                 pass
 
+        if self.theme == "ir_book":
+            self._add_ir_footer(slide)
         self._add_page_number(slide)
 
     def _set_table_borders(self, table, num_rows, num_cols, border_color):
-        """테이블 셀 테두리 설정"""
         from pptx.oxml.ns import qn
-
+        border_color_str = str(border_color).replace('#', '')
         for row_idx in range(num_rows):
             for col_idx in range(num_cols):
                 cell = table.cell(row_idx, col_idx)
                 tc = cell._tc
                 tcPr = tc.get_or_add_tcPr()
-
                 for border_name in ['a:lnL', 'a:lnR', 'a:lnT', 'a:lnB']:
                     ln = tcPr.find(qn(border_name))
                     if ln is None:
                         ln = tcPr.makeelement(qn(border_name), {})
                         tcPr.append(ln)
-
-                    ln.set('w', '12700')  # 1pt
+                    ln.set('w', '12700')
                     ln.set('cap', 'flat')
                     ln.set('cmpd', 'sng')
-
                     solidFill = ln.find(qn('a:solidFill'))
                     if solidFill is None:
                         solidFill = ln.makeelement(qn('a:solidFill'), {})
                         ln.insert(0, solidFill)
-
                     srgbClr = solidFill.find(qn('a:srgbClr'))
                     if srgbClr is None:
                         srgbClr = solidFill.makeelement(qn('a:srgbClr'), {})
                         solidFill.append(srgbClr)
-
-                    srgbClr.set('val', str(border_color).replace('#', ''))
+                    srgbClr.set('val', border_color_str)
 
     # ─────────────────────────────────────────
     # 통합 렌더 함수
     # ─────────────────────────────────────────
     def add_formatted_slide(self, formatted_data, image_path=None, slide_label=""):
-        """
-        content_formatter.format_content_for_slide()의 반환값을 받아
-        한 슬라이드에 모든 내용을 배치
-        """
         layout = formatted_data.get("layout", "bullets")
         title = formatted_data.get("title", "")
         sections = formatted_data.get("sections", [])
 
         if layout == "table":
-            headers = []
-            rows = []
+            headers, rows = [], []
             for sec in sections:
                 if sec["type"] == "table":
                     headers = sec["headers"]
@@ -659,27 +756,57 @@ class PPTBuilder:
         slide = self.prs.slides.add_slide(self.prs.slide_layouts[6])
         self._set_slide_bg(slide)
 
-        txBox = slide.shapes.add_textbox(Inches(2), Inches(2.5), Inches(9), Inches(1.5))
-        tf = txBox.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
-        p.text = text
-        p.font.size = Pt(48)
-        p.font.bold = True
-        p.font.color.rgb = hex_to_rgb(self.colors["accent"])
-        p.font.name = get_font_name(text)
-        p.alignment = PP_ALIGN.CENTER
+        if self.theme == "ir_book":
+            bar = slide.shapes.add_shape(
+                MSO_SHAPE.RECTANGLE, Inches(0), Inches(2.5), Inches(13.333), Inches(2.5)
+            )
+            bar.fill.solid()
+            bar.fill.fore_color.rgb = hex_to_rgb("#1B2A4A")
+            bar.line.fill.background()
 
-        if subtext:
-            txBox2 = slide.shapes.add_textbox(Inches(2), Inches(4.2), Inches(9), Inches(1))
-            tf2 = txBox2.text_frame
-            tf2.word_wrap = True
-            p2 = tf2.paragraphs[0]
-            p2.text = subtext
-            p2.font.size = Pt(20)
-            p2.font.color.rgb = hex_to_rgb(self.colors.get("subtitle", "#999999"))
-            p2.font.name = get_font_name(subtext)
-            p2.alignment = PP_ALIGN.CENTER
+            txBox = slide.shapes.add_textbox(Inches(2), Inches(2.9), Inches(9), Inches(1.0))
+            tf = txBox.text_frame
+            p = tf.paragraphs[0]
+            p.text = text
+            p.font.size = Pt(44)
+            p.font.bold = True
+            p.font.color.rgb = RGBColor(255, 255, 255)
+            p.font.name = get_font_name(text)
+            p.alignment = PP_ALIGN.CENTER
+
+            if subtext:
+                txBox2 = slide.shapes.add_textbox(Inches(2), Inches(4.0), Inches(9), Inches(0.8))
+                tf2 = txBox2.text_frame
+                p2 = tf2.paragraphs[0]
+                p2.text = subtext
+                p2.font.size = Pt(18)
+                p2.font.color.rgb = RGBColor(200, 210, 230)
+                p2.font.name = get_font_name(subtext)
+                p2.alignment = PP_ALIGN.CENTER
+
+            self._add_ir_footer(slide, "본 자료는 정보 제공을 목적으로 작성되었습니다.")
+        else:
+            txBox = slide.shapes.add_textbox(Inches(2), Inches(2.5), Inches(9), Inches(1.5))
+            tf = txBox.text_frame
+            tf.word_wrap = True
+            p = tf.paragraphs[0]
+            p.text = text
+            p.font.size = Pt(48)
+            p.font.bold = True
+            p.font.color.rgb = hex_to_rgb(self.colors["accent"])
+            p.font.name = get_font_name(text)
+            p.alignment = PP_ALIGN.CENTER
+
+            if subtext:
+                txBox2 = slide.shapes.add_textbox(Inches(2), Inches(4.2), Inches(9), Inches(1))
+                tf2 = txBox2.text_frame
+                tf2.word_wrap = True
+                p2 = tf2.paragraphs[0]
+                p2.text = subtext
+                p2.font.size = Pt(20)
+                p2.font.color.rgb = hex_to_rgb(self.colors.get("subtitle", "#999999"))
+                p2.font.name = get_font_name(subtext)
+                p2.alignment = PP_ALIGN.CENTER
 
         self._add_page_number(slide)
 
