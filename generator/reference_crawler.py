@@ -30,7 +30,6 @@ def search_reference_images(keyword: str, tone: str, num_results=5) -> list:
         try:
             # SerpAPI 또는 무료 이미지 검색 API 사용
             # 여기서는 간단한 구현 예시
-            api_url = "https://www.googleapis.com/customsearch/v1"
             params = {
                 "q": query,
                 "searchType": "image",
