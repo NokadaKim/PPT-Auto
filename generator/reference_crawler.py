@@ -27,21 +27,9 @@ def search_reference_images(keyword: str, tone: str, num_results=5) -> list:
 
     results = []
     for query in search_queries:
-        try:
-            # SerpAPI 또는 무료 이미지 검색 API 사용
-            # 여기서는 간단한 구현 예시
-            params = {
-                "q": query,
-                "searchType": "image",
-                "num": num_results,
-                "key": os.getenv("GOOGLE_CSE_KEY", ""),
-                "cx": os.getenv("GOOGLE_CSE_ID", ""),
-                "imgSize": "large",
-                "safe": "active"
             }
-
             if params["key"]:
-                resp = requests.get(api_url, params=params, timeout=10)
+               
                 if resp.status_code == 200:
                     data = resp.json()
                     for item in data.get("items", []):
